@@ -4,11 +4,13 @@ from discord.ext import commands
 from collections import Counter
 import datetime
 
-from utils import get_rank
+from utils import get_rank, create_queue_embed
 from matchmaker import run_matchmaking
 
+REGION_ROLE_NAMES = ["NA", "EU", "SAM", "MENA", "APAC", "OCE"]
+
 def register_queue_command(bot: commands.Bot):
-    @bot.command()
+    @bot.command(aliases=["queue"])
     async def q(ctx):
         if ctx.channel.name != "queue-here":
             return
@@ -29,34 +31,31 @@ def register_queue_command(bot: commands.Bot):
 
         mmr = row[0]
 
-        # Update their queue status and queue time
+        # Determine region roles from user
+        region_roles = [role.name for role in ctx.author.roles if role.name in REGION_ROLE_NAMES]
+        if not region_roles:
+            await ctx.channel.send(
+                "❌ You need at least one region role to queue.\n"
+                "Please head over to <#1362802610796630340> and react to choose the regions you play in."
+            )
+            return
+
+        region_str = ",".join(region_roles)
+
+        # Update their queue status, queue time, and regions
         now = datetime.datetime.now(datetime.UTC)
         cursor.execute(
-            "UPDATE players SET queue_status = 'IN_QUEUE', queue_time = ? WHERE discord_id = ?",
-            (now, user_id)
+            "UPDATE players SET queue_status = 'IN_QUEUE', queue_time = ?, regions = ? WHERE discord_id = ?",
+            (now, region_str, user_id)
         )
         conn.commit()
-
-        # Get current queue counts per tier
-        cursor.execute("SELECT mmr FROM players WHERE queue_status = 'IN_QUEUE'")
-        mmrs = [r[0] for r in cursor.fetchall()]
         conn.close()
 
-        rank_counts = Counter([get_rank(m) for m in mmrs])
-
         # Create anonymous embed
-        embed = discord.Embed(
-            title="🔒 Queue Updated",
-            description="A new player has joined the queue.\n\n**Current Queue Status:**",
-            color=discord.Color.blurple()
-        )
-
-        for rank in ["Rank S", "Rank X", "Rank A", "Rank B", "Rank C", "Rank D"]:
-            count = rank_counts.get(rank, 0)
-            embed.add_field(name=rank, value=f"{count} queued", inline=True)
+        embed = create_queue_embed("A new player has joined the queue.")
 
         await ctx.message.delete()
-        await ctx.author.send(f"✅ You’ve been added to the queue. Looking for opponents...")
+        await ctx.author.send(f"✅ You’ve been added to the queue. Looking for opponents...\n\n**Regions you are queueing for**: {region_str}")
         await ctx.channel.send(embed=embed)
 
         await run_matchmaking(bot)
