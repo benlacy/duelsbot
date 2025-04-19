@@ -209,9 +209,12 @@ async def post_leaderboard(channel):
     lines.append("-" * 45)
 
     for idx, (discord_id, mmr, wins, losses) in enumerate(players, start=1):
-        user = await channel.guild.fetch_member(int(discord_id))
-        name = user.display_name if user else f"User {discord_id}"
-        lines.append(f"{idx:<5} {mmr:<5} {wins:<3} {losses:<3} {name:<20}")
+        try:
+            user = await channel.guild.fetch_member(int(discord_id))
+            name = user.display_name if user else f"User {discord_id}"
+            lines.append(f"{idx:<5} {mmr:<5} {wins:<3} {losses:<3} {name:<20}")
+        except:
+            print(f"{discord_id} user doesnt exist anymore")
 
     # Step 5: Chunk messages and send
     message = "```\n"
