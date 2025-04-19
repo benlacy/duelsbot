@@ -186,7 +186,7 @@ def register_leaderboard_command(bot: commands.Bot):
         if ctx.channel.name != "leaderboard":
             return
         
-        post_leaderboard(ctx.channel) 
+        await post_leaderboard(ctx.channel)
         
 
 async def post_leaderboard(channel):
