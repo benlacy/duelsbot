@@ -5,6 +5,7 @@ import os
 from q import register_queue_command
 from leave import register_leave_command
 from report import register_report_command
+from report import register_leaderboard_command
 from rankcheck import register_rankcheck_command
 from status import register_status_command
 from matchmaker import matchmaking_loop
@@ -26,6 +27,7 @@ register_report_command(bot)
 register_rankcheck_command(bot)
 register_leave_command(bot)
 register_status_command(bot)
+register_leaderboard_command(bot)
 
 @bot.event
 async def on_ready():

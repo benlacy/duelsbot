@@ -180,6 +180,15 @@ async def clear_all_bot_messages(channel):
     deleted = await channel.purge(check=is_bot_message)
     print(f"🧹 Cleared {len(deleted)} leaderboard messages.")
 
+def register_leaderboard_command(bot: commands.Bot):
+    @bot.command()
+    async def leaderboard(ctx):
+        if ctx.channel.name != "leaderboard":
+            return
+        
+        post_leaderboard(ctx.channel) 
+        
+
 async def post_leaderboard(channel):
     # Step 1: Clear old leaderboard messages
     await clear_all_bot_messages(channel)
