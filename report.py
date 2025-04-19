@@ -187,7 +187,7 @@ async def post_leaderboard(channel):
     # Step 2: Fetch current player MMRs from the database
     conn = sqlite3.connect("mmr.db")
     cursor = conn.cursor()
-    cursor.execute("SELECT discord_id, mmr, wins, losses FROM players")
+    cursor.execute("SELECT discord_id, mmr, wins, losses FROM players WHERE wins > 0 OR losses > 0")
     players = cursor.fetchall()
     conn.close()
 
