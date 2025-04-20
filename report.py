@@ -214,6 +214,7 @@ async def post_leaderboard(channel):
             name = user.display_name if user else f"User {discord_id}"
             lines.append(f"{idx:<5} {mmr:<5} {wins:<3} {losses:<3} {name:<20}")
         except:
+            #TODO Prune this user from the database, probably, or skip them somehow
             print(f"{discord_id} user doesnt exist anymore")
 
     # Step 5: Chunk messages and send

@@ -136,9 +136,25 @@ async def get_player_stats(platform_id, player_id):
 
 async def get_player_mmr(platform_id, player_id, playlist_id=PLAYLIST_MAP['duel']):
     data = await get_player_stats(platform_id, player_id)
-    if data:
-        season = str(data['SeasonInfo']['SeasonID'])
-        return data['RankedSeasons'][season][playlist_id]['SkillRating']
-    return None
+    if not data:
+        return None
 
+    season_info = data.get('SeasonInfo')
+    if not season_info:
+        return None
+
+    season_id = str(season_info.get('SeasonID'))
+    if not season_id:
+        return None
+
+    ranked_seasons = data.get('RankedSeasons', {})
+    season_data = ranked_seasons.get(season_id)
+    if not season_data:
+        return None
+
+    playlist_data = season_data.get(playlist_id)
+    if not playlist_data:
+        return None
+
+    return playlist_data.get('SkillRating')
 # asyncio.run(get_player_mmr("steam", "76561198251007520"))
