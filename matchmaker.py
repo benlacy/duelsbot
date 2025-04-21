@@ -117,7 +117,7 @@ async def run_matchmaking(bot):
 
 
 
-CONFIRM_TIMEOUT = 120  # 2 minutes
+CONFIRM_TIMEOUT = 300  # 2 minutes
 
 async def send_match_confirmation(bot, match_id, player1_id, player2_id, matched_regions):
     # try:
@@ -212,14 +212,23 @@ async def send_match_confirmation(bot, match_id, player1_id, player2_id, matched
                 conn = sqlite3.connect("mmr.db")
                 cursor = conn.cursor()
                 cursor.execute("DELETE FROM matches WHERE match_id = ?", (match_id,))
+
                 for pid in player_ids:
-                    cursor.execute("UPDATE players SET queue_status = 'IN_QUEUE' WHERE discord_id = ?", (pid,))
+                    if confirmed[pid] is None:
+                        # Did not react – mark as idle
+                        cursor.execute("UPDATE players SET queue_status = 'IDLE' WHERE discord_id = ?", (pid,))
+                    else:
+                        # Reacted – still interested, return to queue
+                        cursor.execute("UPDATE players SET queue_status = 'IN_QUEUE' WHERE discord_id = ?", (pid,))
                 conn.commit()
                 conn.close()
 
                 for pid in player_ids:
                     user = await bot.fetch_user(int(pid))
-                    await user.send("⏰ Match timed out. You've been returned to the queue.")
+                    if confirmed[pid] is None:
+                        await user.send("⏰ Match timed out. You didn't respond in time and have been marked as idle.")
+                    else:
+                        await user.send("⏰ Match timed out. Your opponent didn’t confirm, so you’ve been returned to the queue.")
                 return
 
         # Both confirmed ✅
