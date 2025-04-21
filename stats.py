@@ -7,7 +7,7 @@ def register_stats_command(bot: commands.Bot):
     @bot.command()
     async def stats(ctx, *, target: discord.Member = None):
         target = target or ctx.author
-        user_id = str(target.id)
+        user_id = target.id
 
         conn = sqlite3.connect("mmr.db")
         cursor = conn.cursor()
