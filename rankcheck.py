@@ -42,6 +42,7 @@ def register_rankcheck_command(bot: commands.Bot):
 
         user_id = str(ctx.author.id)
         now = datetime.datetime.now(datetime.UTC)
+        logging.info(f"Rankcheck command triggered by {ctx.author.name} ({ctx.author.id})")
 
         conn = sqlite3.connect('mmr.db')
         cursor = conn.cursor()
@@ -56,17 +57,21 @@ def register_rankcheck_command(bot: commands.Bot):
                 if (now - last_check).days < 14:
                     days_remaining = 14 - (now - last_check).days
                     await ctx.send(f"⏳ {ctx.author.mention}, you can check your rank again in {days_remaining} day(s).")
+                    logging.info(f"User {ctx.author.name} has recently checked their rank. Days remaining: {days_remaining}")
                     conn.close()
                     return
 
+        logging.info(f"Fetching rank for {ign} on {platform}")
         # Fetch MMR from RLStats API
         rank = await get_player_mmr(platform, ign)
         if not rank:
             await ctx.send(f"⚠️ Couldn’t find stats for `{ign}` on `{platform}`.")
+            logging.error(f"Failed to fetch stats for {ign} on {platform}.")
             conn.close()
             return
 
         rankcheck_date = now.isoformat()
+        logging.info(f"Found MMR for {ign} on {platform}: {rank}")
 
         if existing:
             cursor.execute(
@@ -74,12 +79,14 @@ def register_rankcheck_command(bot: commands.Bot):
                 (ign, platform, rank, rankcheck_date, user_id)
             )
             action = "updated"
+            logging.info(f"Updated rankcheck for {ign} in database.")
         else:
             cursor.execute(
                 'INSERT INTO players (discord_id, ign, platform, mmr, rankcheck_date) VALUES (?, ?, ?, ?, ?)',
                 (user_id, ign, platform, rank, rankcheck_date)
             )
             action = "registered"
+            logging.info(f"Registered new player {ign} in database.")
 
         conn.commit()
         conn.close()
@@ -94,20 +101,25 @@ def register_rankcheck_command(bot: commands.Bot):
             rank_roles = [r for r in ctx.author.roles if r.name.startswith("Rank ")]
             try:
                 await ctx.author.remove_roles(*rank_roles)
+                logging.info(f"Removed old rank roles from {ctx.author.name}.")
             except discord.Forbidden:
                 await ctx.message.add_reaction("⚠️")
                 await ctx.send("⚠️ I don’t have permission to remove some roles.")
+                logging.error(f"Permission error while removing rank roles from {ctx.author.name}.")
 
             try:
                 await ctx.author.add_roles(role)
                 await ctx.message.add_reaction("✅")
                 await ctx.send(f"✅ {ctx.author.mention} {action}: `{ign}` on `{platform}` — 1v1 MMR: **{rank}** → Assigned **{role_name}**")
+                logging.info(f"Assigned role {role_name} to {ctx.author.name}.")
             except discord.Forbidden:
                 await ctx.message.add_reaction("⚠️")
                 await ctx.send(f"⚠️ {ctx.author.mention} I don’t have permission to assign the role **{role_name}**.")
+                logging.error(f"Permission error while assigning role {role_name} to {ctx.author.name}.")
         else:
             await ctx.message.add_reaction("✅")
             await ctx.send(f"✅ {ctx.author.mention} {action}: `{ign}` on `{platform}` — 1v1 MMR: **{rank}**\n⚠️ Role **{role_name}** not found on this server.")
+            logging.warning(f"Role {role_name} not found for {ctx.author.name}.")
 
 
 
@@ -129,10 +141,11 @@ async def get_player_stats(platform_id, player_id):
     async with aiohttp.ClientSession() as session:
         async with session.get(url, params=params) as response:
             if response.status == 200:
+                logging.info(f"Successfully fetched stats for {player_id} on platform {platform_id}.")
                 return await response.json()
             else:
-                logging.info(f"Failed: {response.status}")
-                logging.info(await response.text())
+                logging.error(f"Failed: {response.status}")
+                logging.error(await response.text())
                 return None
 
 async def get_player_mmr(platform_id, player_id, playlist_id=PLAYLIST_MAP['duel']):
@@ -142,19 +155,23 @@ async def get_player_mmr(platform_id, player_id, playlist_id=PLAYLIST_MAP['duel'
 
     season_info = data.get('SeasonInfo')
     if not season_info:
+        logging.error(f"No season info available for player {player_id}.")
         return None
 
     season_id = str(season_info.get('SeasonID'))
     if not season_id:
+        logging.error(f"No season ID available for player {player_id}.")
         return None
 
     ranked_seasons = data.get('RankedSeasons', {})
     season_data = ranked_seasons.get(season_id)
     if not season_data:
+        logging.error(f"No season data found for player {player_id} in season {season_id}.")
         return None
 
     playlist_data = season_data.get(playlist_id)
     if not playlist_data:
+        logging.error(f"No playlist data found for player {player_id} in playlist {playlist_id}.")
         return None
 
     return playlist_data.get('SkillRating')
