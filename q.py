@@ -31,7 +31,7 @@ def register_queue_command(bot: commands.Bot):
 
         status = row[0]
 
-        if status != "IDLE":
+        if status != "IDLE" and status != None:
             print(f"{user_id} attempted to queue while {status}")
             await ctx.author.send(f"❌ You are currently marked as `{status}`. You can only queue if you're `IDLE`. You either need to confirm your match or report it")
             await ctx.message.delete()
