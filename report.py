@@ -6,8 +6,11 @@ from utils import get_rank
 def register_report_command(bot: commands.Bot):
     @bot.command()
     async def report(ctx, match_id: int, result: str):
+        print(f"📥 Received report command from {ctx.author} for match {match_id} with result '{result}'")
+
         # Only respond if used in #score-report
         if ctx.channel.name != "score-report":
+            print("🚫 Command not used in #score-report channel.")
             return
 
         await ctx.message.add_reaction("⏳")
@@ -15,11 +18,13 @@ def register_report_command(bot: commands.Bot):
         # Validate result
         result = result.upper()
         if result not in ["W", "L", "C"]:
+            print("⚠️ Invalid result provided.")
             await ctx.send("⚠️ Invalid result. Use `W` for win or `L` for loss. `C` cancels the match")
             await ctx.message.add_reaction("⚠️")
             return
 
         user_id = str(ctx.author.id)
+        print(f"🔍 Looking up match {match_id} in database.")
 
         # Fetch match
         conn = sqlite3.connect("mmr.db")
@@ -31,20 +36,24 @@ def register_report_command(bot: commands.Bot):
         row = cursor.fetchone()
 
         if not row:
+            print("❌ No match found or match not in CONFIRMED status.")
             await ctx.send("❌ Match ID not found, or not active")
             await ctx.message.add_reaction("❌")
             conn.close()
             return
 
         p1_id, p2_id, winner_id = row
+        print(f"✅ Match found: p1={p1_id}, p2={p2_id}, winner={winner_id}")
 
         if str(p1_id) != user_id and str(p2_id) != user_id:
+            print("❌ User is not a participant in this match.")
             await ctx.send("❌ You are not a participant in this match.")
             await ctx.message.add_reaction("❌")
             conn.close()
             return
 
         if winner_id is not None:
+            print("⚠️ Match already reported.")
             await ctx.send("⚠️ This match has already been reported.")
             await ctx.message.add_reaction("⚠️")
             conn.close()
@@ -52,6 +61,7 @@ def register_report_command(bot: commands.Bot):
 
         if result == "C":
             # Update match result
+            print("🛑 Cancelling match.")
             cursor.execute(
                 "UPDATE matches SET status = 'CANCELED' WHERE match_id = ?",
                 (match_id,)
@@ -61,7 +71,7 @@ def register_report_command(bot: commands.Bot):
                 "UPDATE players SET queue_status = 'IDLE' WHERE discord_id IN (?, ?)",
                 (p1_id, p2_id)
             )
-            await ctx.send(f"✅ Cancellation for match `{match_id}` recorded: <@{p1_id}> <@{p1_id}> status reset")
+            await ctx.send(f"✅ Cancellation for match `{match_id}` recorded: <@{p1_id}> <@{p2_id}> status reset")
             await ctx.message.add_reaction("✅")
             conn.commit()
             conn.close()
@@ -75,6 +85,7 @@ def register_report_command(bot: commands.Bot):
                 result = cursor.fetchone()
                 if result:
                     match_channel_id = result[0]
+                    print(f"📺 Found match channel ID: {match_channel_id}")
                 conn.close()
             except Exception as e:
                 print(f"⚠️ Error fetching match channel for deletion: {e}")
@@ -84,6 +95,7 @@ def register_report_command(bot: commands.Bot):
                 if match_channel:
                     try:
                         await match_channel.delete(reason="Match reported")
+                        print("🗑️ Match channel deleted.")
                     except discord.Forbidden:
                         print("⚠️ Missing permissions to delete match channel.")
             return
@@ -91,9 +103,10 @@ def register_report_command(bot: commands.Bot):
         if result == "W":
             new_winner_id = user_id
             new_loser_id = str(p1_id) if str(p2_id) == user_id else str(p2_id)
-        else:  # result == "L"
+        else: # result == "L"
             new_loser_id = user_id
             new_winner_id = str(p1_id) if str(p2_id) == user_id else str(p2_id)
+        print(f"🏆 Winner: {new_winner_id}, Loser: {new_loser_id}")
 
         # Update match result
         cursor.execute(
@@ -104,12 +117,13 @@ def register_report_command(bot: commands.Bot):
         # Get current MMRs
         cursor.execute("SELECT mmr FROM players WHERE discord_id = ?", (new_winner_id,))
         winner_mmr = cursor.fetchone()[0]
-
         cursor.execute("SELECT mmr FROM players WHERE discord_id = ?", (new_loser_id,))
         loser_mmr = cursor.fetchone()[0]
+        print(f"📊 MMRs: Winner={winner_mmr}, Loser={loser_mmr}")
 
         # Calculate new MMRs
         new_winner_mmr, new_loser_mmr = calculate_elo(winner_mmr, loser_mmr)
+        print(f"📈 New MMRs: Winner={new_winner_mmr}, Loser={new_loser_mmr}")
 
         # Update MMRs, Wins, and Losses
         cursor.execute("""
@@ -132,6 +146,7 @@ def register_report_command(bot: commands.Bot):
 
         conn.commit()
         conn.close()
+        print("💾 Match and player stats updated in database.")
 
         await ctx.send(f"✅ Result for match `{match_id}` recorded: <@{new_winner_id}> wins!")
         await ctx.message.add_reaction("✅")
@@ -145,6 +160,7 @@ def register_report_command(bot: commands.Bot):
             result = cursor.fetchone()
             if result:
                 match_channel_id = result[0]
+                print(f"📺 Found match channel ID: {match_channel_id}")
             conn.close()
         except Exception as e:
             print(f"⚠️ Error fetching match channel for deletion: {e}")
@@ -154,6 +170,7 @@ def register_report_command(bot: commands.Bot):
             if match_channel:
                 try:
                     await match_channel.delete(reason="Match reported")
+                    print("🗑️ Match channel deleted.")
                 except discord.Forbidden:
                     print("⚠️ Missing permissions to delete match channel.")
 
@@ -162,6 +179,7 @@ def register_report_command(bot: commands.Bot):
 
         leaderboard_channel = discord.utils.get(bot.get_all_channels(), name="leaderboard")
         if leaderboard_channel:
+            print("📢 Posting updated leaderboard...")
             await post_leaderboard(leaderboard_channel)
 
 def calculate_elo(winner_mmr, loser_mmr, k=32):
