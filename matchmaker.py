@@ -131,7 +131,7 @@ async def send_match_confirmation(bot, match_id, player1_id, player2_id, matched
                 title="🎮 Match Found!",
                 description=(
                     f"React with ✅ to confirm or ❌ to cancel.\n"
-                    f"You have 2 minutes.\n\n"
+                    f"You have {CONFIRM_TIMEOUT/60} minutes.\n\n"
                     f"**Matched Region(s):** {', '.join(matched_regions)}"
                 ),
                 color=discord.Color.green()
