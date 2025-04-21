@@ -117,7 +117,7 @@ async def run_matchmaking(bot):
 
 
 
-CONFIRM_TIMEOUT = 300  # 2 minutes
+CONFIRM_TIMEOUT = 420  # 7 minutes
 
 async def send_match_confirmation(bot, match_id, player1_id, player2_id, matched_regions):
     # try:

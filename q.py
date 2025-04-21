@@ -21,7 +21,7 @@ def register_queue_command(bot: commands.Bot):
         conn = sqlite3.connect('mmr.db')
         cursor = conn.cursor()
 
-        cursor.execute("SELECT mmr FROM players WHERE discord_id = ?", (user_id,))
+        cursor.execute("SELECT queue_status FROM players WHERE discord_id = ?", (user_id,))
         row = cursor.fetchone()
 
         if not row:
@@ -29,7 +29,13 @@ def register_queue_command(bot: commands.Bot):
             await ctx.message.delete()
             return
 
-        mmr = row[0]
+        status = row[0]
+
+        if status != "IDLE":
+            print(f"{user_id} attempted to queue while {status}")
+            await ctx.author.send(f"❌ You are currently marked as `{status}`. You can only queue if you're `IDLE`. You either need to confirm your match or report it")
+            await ctx.message.delete()
+            return
 
         # Determine region roles from user
         region_roles = [role.name for role in ctx.author.roles if role.name in REGION_ROLE_NAMES]
