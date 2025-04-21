@@ -9,6 +9,7 @@ from report import register_leaderboard_command
 from rankcheck import register_rankcheck_command
 from status import register_status_command
 from matchmaker import matchmaking_loop
+from stats import register_stats_command
 
 DISCORD_BOT_TOKEN = os.getenv("FEER_DUELS_TOKEN")
 RLSTATS_API_KEY = os.getenv("RLSTATS_API_KEY")
@@ -28,6 +29,7 @@ register_rankcheck_command(bot)
 register_leave_command(bot)
 register_status_command(bot)
 register_leaderboard_command(bot)
+register_stats_command(bot)
 
 @bot.event
 async def on_ready():
