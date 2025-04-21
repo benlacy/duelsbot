@@ -5,6 +5,7 @@ import discord
 from discord import Embed
 import random
 import string
+import logging
 
 from utils import FEER_GUILD_ID
 
@@ -20,16 +21,16 @@ async def matchmaking_loop(bot):
 
 async def run_matchmaking(bot):
     # try:
-        # print("\n🔄 Running matchmaking loop...")
+        logging.info("🔄 Running matchmaking loop...")
 
         with sqlite3.connect("mmr.db") as conn:
             cursor = conn.cursor()
             cursor.execute("SELECT discord_id, mmr, queue_time, regions FROM players WHERE queue_status = 'IN_QUEUE'")
             queued_players = cursor.fetchall()
 
-        # print(f"📥 {len(queued_players)} players currently in queue")
-        # for player in queued_players:
-        #     print(f"  - ID: {player[0]}, MMR: {player[1]}, Queued at: {player[2]}, Regions: {player[3]}")
+        logging.info(f"📥 {len(queued_players)} players currently in queue")
+        for player in queued_players:
+            logging.info(f"  - ID: {player[0]}, MMR: {player[1]}, Queued at: {player[2]}, Regions: {player[3]}")
 
         queued_players.sort(key=lambda x: x[2])  # Sort by queue time (oldest first)
         matched = set()
@@ -43,7 +44,7 @@ async def run_matchmaking(bot):
             mmr_range = BASE_RANGE + RANGE_EXPAND_PER_MINUTE * wait_minutes
             p1_regions = set(p1_regions_str.split(','))
 
-            # print(f"🔍 Trying to match player {p1_id} (MMR: {p1_mmr}, Regions: {p1_regions}, Wait: {wait_minutes:.1f} min, Range: ±{mmr_range:.1f})")
+            logging.info(f"🔍 Trying to match player {p1_id} (MMR: {p1_mmr}, Regions: {p1_regions}, Wait: {wait_minutes:.1f} min, Range: ±{mmr_range:.1f})")
 
             for j in range(i + 1, len(queued_players)):
                 p2_id, p2_mmr, p2_time_str, p2_regions_str = queued_players[j]
@@ -53,7 +54,7 @@ async def run_matchmaking(bot):
                 p2_regions = set(p2_regions_str.split(','))
                 mmr_diff = abs(p1_mmr - p2_mmr)
 
-                # print(f"   ↪ Checking {p2_id} (MMR: {p2_mmr}, Regions: {p2_regions}, Diff: {mmr_diff})")
+                logging.info(f"   ↪ Checking {p2_id} (MMR: {p2_mmr}, Regions: {p2_regions}, Diff: {mmr_diff})")
 
                 if mmr_diff <= mmr_range and p1_regions & p2_regions:
                     now = datetime.datetime.now(datetime.UTC).isoformat()
@@ -75,7 +76,7 @@ async def run_matchmaking(bot):
                     matched.update({p1_id, p2_id})
                     matched_regions = sorted(p1_regions & p2_regions)
 
-                    print(f"✅ Matched {p1_id} and {p2_id} in regions {matched_regions} (match_id: {match_id})")
+                    logging.info(f"✅ Matched {p1_id} and {p2_id} in regions {matched_regions} (match_id: {match_id})")
 
                     guild = bot.get_guild(FEER_GUILD_ID)
                     queue_channel = discord.utils.get(guild.text_channels, name="queue-here")
@@ -94,7 +95,7 @@ async def run_matchmaking(bot):
             wait_minutes = (now - p_time).total_seconds() / 60
 
             if wait_minutes >= TIMEOUT_MINUTES:
-                print(f"⏳ Removing player {p_id} from queue due to timeout ({wait_minutes:.1f} min)")
+                logging.info(f"⏳ Removing player {p_id} from queue due to timeout ({wait_minutes:.1f} min)")
                 with sqlite3.connect("mmr.db") as conn:
                     cursor = conn.cursor()
                     cursor.execute("UPDATE players SET queue_status = 'IDLE' WHERE discord_id = ?", (p_id,))
@@ -104,17 +105,17 @@ async def run_matchmaking(bot):
                     user = await bot.fetch_user(int(p_id))
                     await user.send("⏳ You were removed from the queue after waiting 60 minutes without a match.")
                 except Exception as dm_error:
-                    print(f"⚠️ Could not DM {p_id}: {dm_error}")
+                    logging.info(f"⚠️ Could not DM {p_id}: {dm_error}")
                     
     # except Exception as e:
-    #     print(f"⚠️ Matchmaker error: {e}")
+    #     logging.info(f"⚠️ Matchmaker error: {e}")
 
 
 
 CONFIRM_TIMEOUT = 420  # 7 minutes
 
 async def send_match_confirmation(bot, match_id, player1_id, player2_id, matched_regions):
-        print(f"[MATCH {match_id}] ➤ Starting match confirmation between {player1_id} and {player2_id} in regions: {matched_regions}")
+        logging.info(f"[MATCH {match_id}] ➤ Starting match confirmation between {player1_id} and {player2_id} in regions: {matched_regions}")
         
         guild = bot.get_guild(FEER_GUILD_ID)
         player_ids = [player1_id, player2_id]
@@ -134,47 +135,47 @@ async def send_match_confirmation(bot, match_id, player1_id, player2_id, matched
 
         # Send DM to each player
         for pid in player_ids:
-            print(f"[MATCH {match_id}] ➤ Sending DM to user {pid}")
+            logging.info(f"[MATCH {match_id}] ➤ Sending DM to user {pid}")
             user = await bot.fetch_user(int(pid))
             msg = await user.send(embed=make_embed())
             await msg.add_reaction("✅")
             await msg.add_reaction("❌")
             confirmed[pid] = None # Placeholder for reaction
             messages[pid] = msg
-            print(f"[MATCH {match_id}] ✅ Sent match confirmation to {user.name} ({pid})")
+            logging.info(f"[MATCH {match_id}] ✅ Sent match confirmation to {user.name} ({pid})")
 
         def check(reaction, user):
             try:
                 if user.id not in messages:
-                    print(f"[MATCH {match_id}] ⚠️ Ignoring reaction from user {user.id}, not a match participant")
+                    logging.info(f"[MATCH {match_id}] ⚠️ Ignoring reaction from user {user.id}, not a match participant")
                     return False
-                print(f"[MATCH {match_id}] 🔍 Reaction received: {user.id} on message {reaction.message.id}")
+                logging.info(f"[MATCH {match_id}] 🔍 Reaction received: {user.id} on message {reaction.message.id}")
                 return (
                     str(reaction.emoji) in ["✅", "❌"]
                     and user.id in player_ids
                     and reaction.message.id == messages[user.id].id
                 )
             except Exception as check_error:
-                print(f"[MATCH {match_id}] ⚠️ Error in check function: {check_error}")
+                logging.info(f"[MATCH {match_id}] ⚠️ Error in check function: {check_error}")
                 return False
 
         while True:
             try:
-                print(f"[MATCH {match_id}] ⏳ Waiting for reaction (timeout in {CONFIRM_TIMEOUT}s)...")
+                logging.info(f"[MATCH {match_id}] ⏳ Waiting for reaction (timeout in {CONFIRM_TIMEOUT}s)...")
                 reaction, user = await bot.wait_for("reaction_add", timeout=CONFIRM_TIMEOUT, check=check)
                 emoji = str(reaction.emoji)
                 user_id = user.id
-                print(f"[MATCH {match_id}] 🔁 Reaction: {user_id} reacted with {emoji}")
+                logging.info(f"[MATCH {match_id}] 🔁 Reaction: {user_id} reacted with {emoji}")
 
                 if confirmed[user_id] is not None:
-                    print(f"[MATCH {match_id}] ⏭️ Ignoring duplicate reaction from {user_id}")
+                    logging.info(f"[MATCH {match_id}] ⏭️ Ignoring duplicate reaction from {user_id}")
                     continue
 
                 confirmed[user_id] = emoji
 
                 if emoji == "❌":
                     # Cancel immediately
-                    print(f"[MATCH {match_id}] ❌ Match canceled by {user_id}")
+                    logging.info(f"[MATCH {match_id}] ❌ Match canceled by {user_id}")
                     canceler_id = user_id
                     other_id = next(pid for pid in player_ids if pid != canceler_id)
 
@@ -198,11 +199,11 @@ async def send_match_confirmation(bot, match_id, player1_id, player2_id, matched
                     await user.send("✅ Confirmed! Waiting for your opponent...")
 
                 if all(r in ["✅", "❌"] for r in confirmed.values()):
-                    print(f"[MATCH {match_id}] ✅ All players responded. Proceeding...")
+                    logging.info(f"[MATCH {match_id}] ✅ All players responded. Proceeding...")
                     break
 
             except asyncio.TimeoutError:
-                print(f"[MATCH {match_id}] ⏰ Confirmation timed out.")
+                logging.info(f"[MATCH {match_id}] ⏰ Confirmation timed out.")
                 conn = sqlite3.connect("mmr.db")
                 cursor = conn.cursor()
                 cursor.execute("DELETE FROM matches WHERE match_id = ?", (match_id,))
@@ -210,11 +211,11 @@ async def send_match_confirmation(bot, match_id, player1_id, player2_id, matched
                 for pid in player_ids:
                     if confirmed[pid] is None:
                         # Did not react – mark as idle
-                        print(f"[MATCH {match_id}] ⏰ Timeout: {pid} to idle")
+                        logging.info(f"[MATCH {match_id}] ⏰ Timeout: {pid} to idle")
                         cursor.execute("UPDATE players SET queue_status = 'IDLE' WHERE discord_id = ?", (pid,))
                     else:
                         # Reacted – still interested, return to queue
-                        print(f"[MATCH {match_id}] ⏰ Timeout: {pid} to IN_QUEUE")
+                        logging.info(f"[MATCH {match_id}] ⏰ Timeout: {pid} to IN_QUEUE")
                         cursor.execute("UPDATE players SET queue_status = 'IN_QUEUE' WHERE discord_id = ?", (pid,))
                 conn.commit()
                 conn.close()
@@ -228,7 +229,7 @@ async def send_match_confirmation(bot, match_id, player1_id, player2_id, matched
                 return
 
         # Both confirmed
-        print(f"[MATCH {match_id}] ✅ Both players confirmed. Creating match channel...")
+        logging.info(f"[MATCH {match_id}] ✅ Both players confirmed. Creating match channel...")
         conn = sqlite3.connect("mmr.db")
         cursor = conn.cursor()
         cursor.execute("UPDATE matches SET status = 'CONFIRMED' WHERE match_id = ?", (match_id,))
@@ -255,7 +256,7 @@ async def send_match_confirmation(bot, match_id, player1_id, player2_id, matched
             category=category
         )
 
-        print(f"[MATCH {match_id}] 📺 Created channel #{match_channel.name} (ID: {match_channel.id})")
+        logging.info(f"[MATCH {match_id}] 📺 Created channel #{match_channel.name} (ID: {match_channel.id})")
 
         conn = sqlite3.connect("mmr.db")
         cursor = conn.cursor()
@@ -266,7 +267,7 @@ async def send_match_confirmation(bot, match_id, player1_id, player2_id, matched
         match_name = f"duel{match_id}"
         match_password = ''.join(random.choices(string.ascii_lowercase + string.digits, k=4))
         host = p1.display_name if random.choice([True, False]) else p2.display_name
-        print(f"[MATCH {match_id}] 🧩 Match setup: name={match_name}, pass={match_password}, host={host}")
+        logging.info(f"[MATCH {match_id}] 🧩 Match setup: name={match_name}, pass={match_password}, host={host}")
 
         score_report_channel = discord.utils.get(guild.text_channels, name="score-report")
 
@@ -287,5 +288,5 @@ async def send_match_confirmation(bot, match_id, player1_id, player2_id, matched
             await user.send(
                 f"✅ Match confirmed! Head to {match_channel.mention} for match setup info. GLHF 🎮"
             )
-            print(f"[MATCH {match_id}] ✉️ Sent final DM to {user.name} ({pid})")
+            logging.info(f"[MATCH {match_id}] ✉️ Sent final DM to {user.name} ({pid})")
 

@@ -1,6 +1,18 @@
 import discord
 from discord.ext import commands
 import os
+import logging
+from logging.handlers import RotatingFileHandler
+
+# 🆕 Set up logging
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(message)s",
+    handlers=[
+        RotatingFileHandler("bot.log", encoding="utf-8", maxBytes=1_000_000, backupCount=5),  # 1MB per file, keep 5 old logs
+        logging.StreamHandler()
+    ]
+)
 
 from q import register_queue_command
 from leave import register_leave_command
@@ -33,11 +45,12 @@ register_stats_command(bot)
 
 @bot.event
 async def on_ready():
-    print(f"✅ Logged in as {bot.user.name} (ID: {bot.user.id})")
+    logging.info(f"✅ Logged in as {bot.user.name} (ID: {bot.user.id})")
     bot.loop.create_task(matchmaking_loop(bot))
 
 @bot.command()
 async def ping(ctx):
     await ctx.send("Pong!")
+    logging.info(f"Ping command used by {ctx.author} (ID: {ctx.author.id})")
 
 bot.run(DISCORD_BOT_TOKEN)

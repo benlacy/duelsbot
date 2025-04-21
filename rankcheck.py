@@ -4,6 +4,7 @@ from discord.ext import commands
 import aiohttp
 import os
 import datetime
+import logging
 
 from utils import get_rank
 
@@ -130,8 +131,8 @@ async def get_player_stats(platform_id, player_id):
             if response.status == 200:
                 return await response.json()
             else:
-                print(f"Failed: {response.status}")
-                print(await response.text())
+                logging.info(f"Failed: {response.status}")
+                logging.info(await response.text())
                 return None
 
 async def get_player_mmr(platform_id, player_id, playlist_id=PLAYLIST_MAP['duel']):

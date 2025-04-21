@@ -3,6 +3,7 @@ import discord
 from discord.ext import commands
 from collections import Counter
 import datetime
+import logging
 
 from utils import get_rank, create_queue_embed
 from matchmaker import run_matchmaking
@@ -13,11 +14,11 @@ def register_queue_command(bot: commands.Bot):
     @bot.command(aliases=["queue"])
     async def q(ctx):
         if ctx.channel.name != "queue-here":
-            print(f"Ignored command from channel: {ctx.channel.name}")
+            logging.info(f"Ignored command from channel: {ctx.channel.name}")
             return
 
         user_id = str(ctx.author.id)
-        print(f"User {ctx.author} ({user_id}) used !q")
+        logging.info(f"User {ctx.author} ({user_id}) used !q")
 
         # Connect to DB and set queue_status to IN_QUEUE
         conn = sqlite3.connect('mmr.db')
@@ -27,16 +28,16 @@ def register_queue_command(bot: commands.Bot):
         row = cursor.fetchone()
 
         if not row:
-            print(f"User {user_id} not found in DB. Prompting registration.")
+            logging.info(f"User {user_id} not found in DB. Prompting registration.")
             await ctx.author.send("❌ You are not registered. Please use `!rankcheck` before queueing.")
             await ctx.message.delete()
             return
 
         status = row[0]
-        print(f"Current queue status for {user_id}: {status}")
+        logging.info(f"Current queue status for {user_id}: {status}")
 
         if status != "IDLE" and status is not None:
-            print(f"{user_id} attempted to queue while {status}")
+            logging.info(f"{user_id} attempted to queue while {status}")
             # Uncomment below to enforce status check
             # await ctx.author.send(f"❌ You are currently marked as `{status}`. You can only queue if you're `IDLE`. You either need to confirm your match or report it")
             # await ctx.message.delete()
@@ -44,7 +45,7 @@ def register_queue_command(bot: commands.Bot):
 
         # Determine region roles from user
         region_roles = [role.name for role in ctx.author.roles if role.name in REGION_ROLE_NAMES]
-        print(f"Region roles for {user_id}: {region_roles}")
+        logging.info(f"Region roles for {user_id}: {region_roles}")
         if not region_roles:
             await ctx.channel.send(
                 "❌ You need at least one region role to queue.\n"
@@ -56,7 +57,7 @@ def register_queue_command(bot: commands.Bot):
 
         # Update their queue status, queue time, and regions
         now = datetime.datetime.now(datetime.UTC)
-        print(f"Setting {user_id} to IN_QUEUE at {now.isoformat()} for regions: {region_str}")
+        logging.info(f"Setting {user_id} to IN_QUEUE at {now.isoformat()} for regions: {region_str}")
         cursor.execute(
             "UPDATE players SET queue_status = 'IN_QUEUE', queue_time = ?, regions = ? WHERE discord_id = ?",
             (now, region_str, user_id)
@@ -71,5 +72,5 @@ def register_queue_command(bot: commands.Bot):
         await ctx.author.send(f"✅ You’ve been added to the queue. Looking for opponents...\n\n**Regions you are queueing for**: {region_str}")
         await ctx.channel.send(embed=embed)
 
-        print(f"Running matchmaking for {user_id}...")
+        logging.info(f"Running matchmaking for {user_id}...")
         await run_matchmaking(bot)
