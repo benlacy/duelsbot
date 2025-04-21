@@ -20,16 +20,16 @@ async def matchmaking_loop(bot):
 
 async def run_matchmaking(bot):
     # try:
-        print("\n🔄 Running matchmaking loop...")
+        # print("\n🔄 Running matchmaking loop...")
 
         with sqlite3.connect("mmr.db") as conn:
             cursor = conn.cursor()
             cursor.execute("SELECT discord_id, mmr, queue_time, regions FROM players WHERE queue_status = 'IN_QUEUE'")
             queued_players = cursor.fetchall()
 
-        print(f"📥 {len(queued_players)} players currently in queue")
-        for player in queued_players:
-            print(f"  - ID: {player[0]}, MMR: {player[1]}, Queued at: {player[2]}, Regions: {player[3]}")
+        # print(f"📥 {len(queued_players)} players currently in queue")
+        # for player in queued_players:
+        #     print(f"  - ID: {player[0]}, MMR: {player[1]}, Queued at: {player[2]}, Regions: {player[3]}")
 
         queued_players.sort(key=lambda x: x[2])  # Sort by queue time (oldest first)
         matched = set()
@@ -43,7 +43,7 @@ async def run_matchmaking(bot):
             mmr_range = BASE_RANGE + RANGE_EXPAND_PER_MINUTE * wait_minutes
             p1_regions = set(p1_regions_str.split(','))
 
-            print(f"🔍 Trying to match player {p1_id} (MMR: {p1_mmr}, Regions: {p1_regions}, Wait: {wait_minutes:.1f} min, Range: ±{mmr_range:.1f})")
+            # print(f"🔍 Trying to match player {p1_id} (MMR: {p1_mmr}, Regions: {p1_regions}, Wait: {wait_minutes:.1f} min, Range: ±{mmr_range:.1f})")
 
             for j in range(i + 1, len(queued_players)):
                 p2_id, p2_mmr, p2_time_str, p2_regions_str = queued_players[j]
@@ -53,7 +53,7 @@ async def run_matchmaking(bot):
                 p2_regions = set(p2_regions_str.split(','))
                 mmr_diff = abs(p1_mmr - p2_mmr)
 
-                print(f"   ↪ Checking {p2_id} (MMR: {p2_mmr}, Regions: {p2_regions}, Diff: {mmr_diff})")
+                # print(f"   ↪ Checking {p2_id} (MMR: {p2_mmr}, Regions: {p2_regions}, Diff: {mmr_diff})")
 
                 if mmr_diff <= mmr_range and p1_regions & p2_regions:
                     now = datetime.datetime.now(datetime.UTC).isoformat()
