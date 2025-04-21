@@ -5,8 +5,9 @@ import sqlite3
 
 def register_stats_command(bot: commands.Bot):
     @bot.command()
-    async def stats(ctx):
-        user_id = str(ctx.author.id)
+    async def stats(ctx, *, target: discord.Member = None):
+        target = target or ctx.author
+        user_id = str(target.id)
 
         conn = sqlite3.connect("mmr.db")
         cursor = conn.cursor()
@@ -24,11 +25,11 @@ def register_stats_command(bot: commands.Bot):
         conn.close()
 
         if not matches:
-            await ctx.send("❌ You have no recent matches.")
+            await ctx.send(f"❌ {target.display_name} has no recent matches.")
             return
 
         embed = discord.Embed(
-            title=f"{ctx.author.display_name}'s Recent Matches",
+            title=f"{target.display_name}'s Recent Matches",
             color=discord.Color.blue()
         )
 
@@ -50,7 +51,7 @@ def register_stats_command(bot: commands.Bot):
                 else:
                     display = "Unknown"
             except:
-                 display = "Unknown"
+                display = "Unknown"
 
             lines.append(f"{result} - {display} ({relative_time})")
 
