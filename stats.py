@@ -17,6 +17,8 @@ def register_stats_command(bot: commands.Bot):
             SELECT player1_id, player2_id, winner_id, created_at
             FROM matches
             WHERE player1_id = ? OR player2_id = ?
+                AND status == 'REPORTED'
+                AND winner_id IS NOT NULL
             ORDER BY created_at DESC
             LIMIT 5
         """, (user_id, user_id))
