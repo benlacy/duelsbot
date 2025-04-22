@@ -42,7 +42,7 @@ def register_rankcheck_command(bot: commands.Bot):
 
         if get_platform_id(platform) is None:
             await ctx.send(f"⚠️ Invalid rankcheck format. Ex: !rankcheck <platform> <id>")
-            logging.info(f"Invalid platform `{platform}` on rankcheck triggered by {ctx.author.name} ({ctx.author.id})")
+            logging.warning(f"Invalid platform `{platform}` on rankcheck triggered by {ctx.author.name} ({ctx.author.id})")
             return
 
         user_id = str(ctx.author.id)

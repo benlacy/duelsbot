@@ -105,7 +105,7 @@ async def run_matchmaking(bot):
                     user = await bot.fetch_user(int(p_id))
                     await user.send("⏳ You were removed from the queue after waiting 60 minutes without a match.")
                 except Exception as dm_error:
-                    logging.info(f"⚠️ Could not DM {p_id}: {dm_error}")
+                    logging.warning(f"⚠️ Could not DM {p_id}: {dm_error}")
                     
     # except Exception as e:
     #     logging.info(f"⚠️ Matchmaker error: {e}")
@@ -147,7 +147,7 @@ async def send_match_confirmation(bot, match_id, player1_id, player2_id, matched
         def check(reaction, user):
             try:
                 if user.id not in messages:
-                    logging.info(f"[MATCH {match_id}] ⚠️ Ignoring reaction from user {user.id}, not a match participant")
+                    logging.warning(f"[MATCH {match_id}] ⚠️ Ignoring reaction from user {user.id}, not a match participant")
                     return False
                 logging.info(f"[MATCH {match_id}] 🔍 Reaction received: {user.id} on message {reaction.message.id}")
                 return (
@@ -168,7 +168,7 @@ async def send_match_confirmation(bot, match_id, player1_id, player2_id, matched
                 logging.info(f"[MATCH {match_id}] 🔁 Reaction: {user_id} reacted with {emoji}")
 
                 if confirmed[user_id] is not None:
-                    logging.info(f"[MATCH {match_id}] ⏭️ Ignoring duplicate reaction from {user_id}")
+                    logging.warning(f"[MATCH {match_id}] ⏭️ Ignoring duplicate reaction from {user_id}")
                     continue
 
                 confirmed[user_id] = emoji

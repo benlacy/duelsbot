@@ -19,7 +19,7 @@ def register_report_command(bot: commands.Bot):
         # Validate result
         result = result.upper()
         if result not in ["W", "L", "C"]:
-            logging.info("⚠️ Invalid result provided.")
+            logging.warning("⚠️ Invalid result provided.")
             await ctx.send("⚠️ Invalid result. Use `W` for win or `L` for loss. `C` cancels the match")
             await ctx.message.add_reaction("⚠️")
             return
@@ -37,7 +37,7 @@ def register_report_command(bot: commands.Bot):
         row = cursor.fetchone()
 
         if not row:
-            logging.info("❌ No match found or match not in CONFIRMED status.")
+            logging.warning("❌ No match found or match not in CONFIRMED status.")
             await ctx.send("❌ Match ID not found, or not active")
             await ctx.message.add_reaction("❌")
             conn.close()
@@ -47,14 +47,14 @@ def register_report_command(bot: commands.Bot):
         logging.info(f"✅ Match found: p1={p1_id}, p2={p2_id}, winner={winner_id}")
 
         if str(p1_id) != user_id and str(p2_id) != user_id:
-            logging.info("❌ User is not a participant in this match.")
+            logging.warning("❌ User is not a participant in this match.")
             await ctx.send("❌ You are not a participant in this match.")
             await ctx.message.add_reaction("❌")
             conn.close()
             return
 
         if winner_id is not None:
-            logging.info("⚠️ Match already reported.")
+            logging.warning("⚠️ Match already reported.")
             await ctx.send("⚠️ This match has already been reported.")
             await ctx.message.add_reaction("⚠️")
             conn.close()
@@ -89,7 +89,7 @@ def register_report_command(bot: commands.Bot):
                     logging.info(f"📺 Found match channel ID: {match_channel_id}")
                 conn.close()
             except Exception as e:
-                logging.info(f"⚠️ Error fetching match channel for deletion: {e}")
+                logging.error(f"⚠️ Error fetching match channel for deletion: {e}")
 
             if match_channel_id:
                 match_channel = bot.get_channel(match_channel_id)
@@ -98,7 +98,7 @@ def register_report_command(bot: commands.Bot):
                         await match_channel.delete(reason="Match reported")
                         logging.info("🗑️ Match channel deleted.")
                     except discord.Forbidden:
-                        logging.info("⚠️ Missing permissions to delete match channel.")
+                        logging.error("⚠️ Missing permissions to delete match channel.")
             return
 
         if result == "W":
@@ -164,7 +164,7 @@ def register_report_command(bot: commands.Bot):
                 logging.info(f"📺 Found match channel ID: {match_channel_id}")
             conn.close()
         except Exception as e:
-            logging.info(f"⚠️ Error fetching match channel for deletion: {e}")
+            logging.error(f"⚠️ Error fetching match channel for deletion: {e}")
 
         if match_channel_id:
             match_channel = bot.get_channel(match_channel_id)
@@ -173,7 +173,7 @@ def register_report_command(bot: commands.Bot):
                     await match_channel.delete(reason="Match reported")
                     logging.info("🗑️ Match channel deleted.")
                 except discord.Forbidden:
-                    logging.info("⚠️ Missing permissions to delete match channel.")
+                    logging.error("⚠️ Missing permissions to delete match channel.")
 
         await update_player_role(ctx, new_winner_id, new_winner_mmr)
         await update_player_role(ctx, new_loser_id, new_loser_mmr)
@@ -234,7 +234,7 @@ async def post_leaderboard(channel):
             lines.append(f"{idx:<5} {mmr:<5} {wins:<3} {losses:<3} {name:<20}")
         except:
             #TODO Prune this user from the database, probably, or skip them somehow
-            logging.info(f"{discord_id} user doesnt exist anymore")
+            logging.warning(f"{discord_id} user doesnt exist anymore")
 
     # Step 5: Chunk messages and send
     message = "```\n"

@@ -42,7 +42,7 @@ def register_queue_command(bot: commands.Bot):
         row = cursor.fetchone()
 
         if not row:
-            logging.info(f"User {user_id} not found in DB. Prompting registration.")
+            logging.warning(f"User {user_id} not found in DB. Prompting registration.")
             await ctx.author.send("❌ You are not registered. Please use `!rankcheck` before queueing.")
             if not isinstance(ctx.channel, discord.DMChannel):
                 await ctx.message.delete()
@@ -52,7 +52,7 @@ def register_queue_command(bot: commands.Bot):
         logging.info(f"Current queue status for {user_id}: {status}")
 
         if status != "IDLE" and status is not None:
-            logging.info(f"{user_id} attempted to queue while {status}")
+            logging.warning(f"{user_id} attempted to queue while {status}")
             # You can uncomment this to enforce status logic
             # await ctx.author.send(f"❌ You are currently marked as `{status}`. You can only queue if you're `IDLE`. You either need to confirm your match or report it.")
             # if not isinstance(ctx.channel, discord.DMChannel):

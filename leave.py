@@ -24,7 +24,7 @@ def register_leave_command(bot: commands.Bot):
         row = cursor.fetchone()
 
         if not row:
-            logging.info("[LEAVE] User not found in database.")
+            logging.warning("[LEAVE] User not found in database.")
             if ctx.guild:  # Only try deleting if not DM
                 await ctx.message.delete()
             await ctx.author.send("❌ You are not registered in the system.")
