@@ -40,6 +40,11 @@ def register_rankcheck_command(bot: commands.Bot):
 
         await ctx.message.add_reaction("⏳")
 
+        if get_platform_id(platform) is None:
+            await ctx.send(f"⚠️ Invalid rankcheck format. Ex: !rankcheck <platform> <id>")
+            logging.info(f"Invalid platform `{platform}` on rankcheck triggered by {ctx.author.name} ({ctx.author.id})")
+            return
+
         user_id = str(ctx.author.id)
         now = datetime.datetime.now(datetime.UTC)
         logging.info(f"Rankcheck command triggered by {ctx.author.name} ({ctx.author.id})")
