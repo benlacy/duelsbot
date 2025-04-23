@@ -3,9 +3,10 @@ import discord
 from discord.ext import commands
 import datetime
 import logging
+import re
 
 from utils import get_rank, create_queue_embed
-from matchmaker import run_matchmaking
+from matchmaker import run_matchmaking, BASE_RANGE
 
 REGION_ROLE_NAMES = ["NA", "EU", "SAM", "MENA", "APAC", "OCE"]
 
@@ -14,6 +15,13 @@ def register_queue_command(bot: commands.Bot):
     async def q(ctx):
         location = f"DMs" if isinstance(ctx.channel, discord.DMChannel) else f"#{ctx.channel.name}"
         logging.info(f"User {ctx.author} ({ctx.author.id}) used !q from {location}")
+
+        # Disallow using the command in public channels except #queue-here
+        if not isinstance(ctx.channel, discord.DMChannel) and ctx.channel.name != "queue-here":
+            logging.warning(f"User {ctx.author} tried to queue from #{ctx.channel.name}, which is not allowed.")
+            await ctx.author.send("❌ You can only use `!q` in DMs or in the #queue-here channel.")
+            await ctx.message.delete()
+            return
 
         user_id = str(ctx.author.id)
 
@@ -38,7 +46,7 @@ def register_queue_command(bot: commands.Bot):
         conn = sqlite3.connect('mmr.db')
         cursor = conn.cursor()
 
-        cursor.execute("SELECT queue_status FROM players WHERE discord_id = ?", (user_id,))
+        cursor.execute("SELECT queue_status, mmr FROM players WHERE discord_id = ?", (user_id,))
         row = cursor.fetchone()
 
         if not row:
@@ -48,7 +56,8 @@ def register_queue_command(bot: commands.Bot):
                 await ctx.message.delete()
             return
 
-        status = row[0]
+        status, mmr = row
+
         logging.info(f"Current queue status for {user_id}: {status}")
 
         if status != "IDLE" and status is not None:
@@ -68,9 +77,48 @@ def register_queue_command(bot: commands.Bot):
             (now, region_str, user_id)
         )
         conn.commit()
-        conn.close()
+
 
         embed = create_queue_embed("A new player has joined the queue.")
+
+        # NEW PING LOGIC
+        # Define MMR range for initial matchmaking
+        min_mmr = mmr - BASE_RANGE
+        max_mmr = mmr + BASE_RANGE
+
+        region_set = set(region_roles)
+        one_hour_ago = now - datetime.timedelta(hours=1)
+
+        # Find ping candidates
+        cursor.execute("""
+            SELECT discord_id, regions FROM players
+            WHERE queue_status = 'IDLE'
+            AND ping = 1
+            AND mmr BETWEEN ? AND ?
+            AND (ping_time IS NULL OR ping_time < ?)
+        """, (min_mmr, max_mmr, one_hour_ago))
+
+        mention_members = []
+        for discord_id, regions in cursor.fetchall():
+            other_regions = set(re.split(r"[,\s]+", regions.strip()))
+            if region_set & other_regions:
+                member = guild.get_member(int(discord_id))
+                if member:
+                    mention_members.append(member)
+                    cursor.execute("UPDATE players SET ping_time = ? WHERE discord_id = ?", (now, str(discord_id)))
+
+        # Commit ping_time updates
+        conn.commit()
+        conn.close()
+
+        # Mention in #queue-here
+        if mention_members:
+            mention_text = "🔔 Potential match found! " + " ".join(m.mention for m in mention_members)
+            queue_channel = discord.utils.get(guild.text_channels, name="queue-here")
+            if queue_channel:
+                await queue_channel.send(mention_text)
+
+        # END
 
         if not isinstance(ctx.channel, discord.DMChannel):
             await ctx.message.delete()
