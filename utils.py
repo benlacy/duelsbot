@@ -75,7 +75,7 @@ def create_queue_embed(description) -> discord.Embed:
                 delta = now - queue_time
 
                 rank = get_rank(mmr)
-                queued_for = format_time_queued(delta)
+                queued_for = f"<t:{int(queue_time.timestamp())}:R>"
 
                 region_list = sorted(filter(None, re.split(r"[,\s]+", region_roles.strip())))
                 region_emojis = [REGION_EMOJIS.get(r, r) for r in region_list]
