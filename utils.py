@@ -41,10 +41,6 @@ REGION_EMOJIS = {
     "OCE": "🇦🇺",
 }
 
-def format_time_queued(delta: datetime.timedelta) -> str:
-    total_seconds = int(delta.total_seconds())
-    return f"{total_seconds}s" if total_seconds < 60 else f"{total_seconds // 60}m"
-
 def create_queue_embed(description) -> discord.Embed:
     # Connect to the database and fetch queued players
     conn = sqlite3.connect("mmr.db")
