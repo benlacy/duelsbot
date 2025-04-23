@@ -46,13 +46,17 @@ def register_report_command(bot: commands.Bot):
         p1_id, p2_id, winner_id = row
         logging.info(f"✅ Match found: p1={p1_id}, p2={p2_id}, winner={winner_id}")
 
-        if str(p1_id) != user_id and str(p2_id) != user_id:
-            logging.warning("❌ User is not a participant in this match.")
+        # Check if user is a participant or a moderator (only for cancellation)
+        is_participant = str(p1_id) == user_id or str(p2_id) == user_id
+        is_moderator = discord.utils.get(ctx.author.roles, name="Moderator") is not None
+
+        if not is_participant and not (result == "C" and is_moderator):
+            logging.warning("❌ User is not a participant in this match and not authorized to cancel.")
             await ctx.send("❌ You are not a participant in this match.")
             await ctx.message.add_reaction("❌")
             conn.close()
             return
-
+        
         if winner_id is not None:
             logging.warning("⚠️ Match already reported.")
             await ctx.send("⚠️ This match has already been reported.")
