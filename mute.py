@@ -2,6 +2,7 @@ import discord
 from discord.ext import commands
 import sqlite3
 import logging
+from ping import PING_NO
 
 def register_mute_command(bot: commands.Bot):
     @bot.command()
@@ -35,10 +36,10 @@ def register_mute_command(bot: commands.Bot):
             return
 
         # Update ping column
-        cursor.execute("UPDATE players SET ping = 0 WHERE discord_id = ?", (user_id,))
+        cursor.execute("UPDATE players SET ping = ? WHERE discord_id = ?", (PING_NO, user_id,))
         conn.commit()
         conn.close()
-        logging.info(f"Set ping = 0 for {user_id}")
+        logging.info(f"Set ping = {PING_NO} for {user_id}")
 
         # Remove ping role
         ping_role = discord.utils.get(guild.roles, name="PING")

@@ -7,6 +7,7 @@ import re
 
 from utils import get_rank, create_queue_embed
 from matchmaker import run_matchmaking, BASE_RANGE
+from ping import PING_PUBLIC, PING_DM
 
 REGION_ROLE_NAMES = ["NA", "EU", "SAM", "MENA", "APAC", "OCE"]
 
@@ -39,6 +40,7 @@ def register_queue_command(bot: commands.Bot):
             await ctx.author.send(
                 "❌ You need at least one region role to queue.\n"
                 "Please head over to <#1362802610796630340> and react to choose the regions you play in."
+                #TODO fix this channel link to be better
             )
             return
 
@@ -91,32 +93,45 @@ def register_queue_command(bot: commands.Bot):
 
         # Find ping candidates
         cursor.execute("""
-            SELECT discord_id, regions FROM players
+            SELECT discord_id, regions, ping FROM players
             WHERE queue_status = 'IDLE'
-            AND ping = 1
+            AND ping IN (?, ?)
             AND mmr BETWEEN ? AND ?
             AND (ping_time IS NULL OR ping_time < ?)
-        """, (min_mmr, max_mmr, one_hour_ago))
+        """, (PING_PUBLIC, PING_DM, min_mmr, max_mmr, one_hour_ago))
 
         mention_members = []
-        for discord_id, regions in cursor.fetchall():
+        dm_members = []
+
+        for discord_id, regions, ping_setting in cursor.fetchall():
             other_regions = set(re.split(r"[,\s]+", regions.strip()))
             if region_set & other_regions:
                 member = guild.get_member(int(discord_id))
                 if member:
-                    mention_members.append(member)
+                    if ping_setting == PING_PUBLIC:
+                        mention_members.append(member)
+                    elif ping_setting == PING_DM:
+                        dm_members.append(member)
                     cursor.execute("UPDATE players SET ping_time = ? WHERE discord_id = ?", (now, str(discord_id)))
 
         # Commit ping_time updates
         conn.commit()
         conn.close()
 
-        # Mention in #queue-here
+        # Send public pings
         if mention_members:
             mention_text = "🔔 Potential match found! " + " ".join(m.mention for m in mention_members)
             queue_channel = discord.utils.get(guild.text_channels, name="queue-here")
             if queue_channel:
                 await queue_channel.send(mention_text)
+
+        # Send DMs
+        for member in dm_members:
+            try:
+                await member.send("🔔 A potential match was found in your region and MMR range! Use `!q` to queue up if interested.")
+            except Exception as e:
+                logging.warning(f"Failed to DM {member}: {e}")
+
 
         # END
 
