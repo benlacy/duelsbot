@@ -235,15 +235,15 @@ async def post_leaderboard(channel):
     rank_order = ["Rank S", "Rank X", "Rank A", "Rank B", "Rank C", "Rank D"]
 
     lines = []
+    lines.append(f"{'Rank':<5} {'MMR':<5} {'W':<3} {'L':<3} {'Player':<20}")
+    lines.append("-" * 45)
     for rank in rank_order:
         group = rank_groups.get(rank)
         if not group:
             continue
 
         lines.append(f"--------------{rank}--------------")
-        lines.append(f"{'Rank':<5} {'MMR':<5} {'W':<3} {'L':<3} {'Player':<20}")
-        lines.append("-" * 45)
-
+        
         for idx, (discord_id, mmr, wins, losses) in enumerate(group, start=1):
             try:
                 user = await channel.guild.fetch_member(int(discord_id))
