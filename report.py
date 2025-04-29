@@ -213,34 +213,46 @@ def register_leaderboard_command(bot: commands.Bot):
         
 
 async def post_leaderboard(channel):
-    # Step 1: Clear old leaderboard messages
     await clear_all_bot_messages(channel)
 
-    # Step 2: Fetch current player MMRs from the database
     conn = sqlite3.connect("mmr.db")
     cursor = conn.cursor()
     cursor.execute("SELECT discord_id, mmr, wins, losses FROM players WHERE wins > 0 OR losses > 0")
     players = cursor.fetchall()
     conn.close()
 
-    # Step 3: Sort by MMR descending
+    # Sort by MMR descending
     players.sort(key=lambda x: x[1], reverse=True)
 
-    # Step 4: Format as a table-style string
+    # Group players by rank
+    from collections import defaultdict
+    rank_groups = defaultdict(list)
+    for player in players:
+        rank = get_rank(player[1])
+        rank_groups[rank].append(player)
+
+    # Define rank display order
+    rank_order = ["Rank S", "Rank X", "Rank A", "Rank B", "Rank C", "Rank D"]
+
     lines = []
-    lines.append(f"{'Rank':<5} {'MMR':<5} {'W':<3} {'L':<3} {'Player':<20}")
-    lines.append("-" * 45)
+    for rank in rank_order:
+        group = rank_groups.get(rank)
+        if not group:
+            continue
 
-    for idx, (discord_id, mmr, wins, losses) in enumerate(players, start=1):
-        try:
-            user = await channel.guild.fetch_member(int(discord_id))
-            name = user.display_name if user else f"User {discord_id}"
-            lines.append(f"{idx:<5} {mmr:<5} {wins:<3} {losses:<3} {name:<20}")
-        except:
-            #TODO Prune this user from the database, probably, or skip them somehow
-            logging.warning(f"{discord_id} user doesnt exist anymore")
+        lines.append(f"--------------{rank}--------------")
+        lines.append(f"{'Rank':<5} {'MMR':<5} {'W':<3} {'L':<3} {'Player':<20}")
+        lines.append("-" * 45)
 
-    # Step 5: Chunk messages and send
+        for idx, (discord_id, mmr, wins, losses) in enumerate(group, start=1):
+            try:
+                user = await channel.guild.fetch_member(int(discord_id))
+                name = user.display_name if user else f"User {discord_id}"
+                lines.append(f"{idx:<5} {mmr:<5} {wins:<3} {losses:<3} {name:<20}")
+            except:
+                logging.warning(f"{discord_id} user doesn't exist anymore")
+
+    # Send chunked messages
     message = "```\n"
     for line in lines:
         if len(message) + len(line) + 1 > MAX_CHARS:
